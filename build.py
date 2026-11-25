@@ -125,8 +125,9 @@ def layout(fname, title_ru, title_uz, body, extra_js=""):
 </body>
 </html>'''
 
-def hero(eyebrow, h1, lead, small=True, buttons=""):
-    return f'''<section class="hero{' small' if small else ''}">
+def hero(eyebrow, h1, lead, small=True, buttons="", bg=None):
+    st = f' style="background-image:linear-gradient(180deg,rgba(34,38,26,.55) 0%,rgba(44,48,34,.72) 55%,#2C3022 100%),url(img/{bg}.jpg)"' if bg else ""
+    return f'''<section class="hero{' small' if small else ''}{' photo' if bg else ''}"{st}>
   <div class="container hero-content">
     <span class="eyebrow">{t(*eyebrow)}</span>
     {el("h1", *h1)}
@@ -140,9 +141,24 @@ def hero(eyebrow, h1, lead, small=True, buttons=""):
 def head(h2, p=None):
     return f'<div class="section-head reveal">{el("h2", *h2)}{el("p", *p) if p else ""}</div>'
 
+IMG = {
+ "Леса":"eco-forest", "Болота и торфяники":"eco-bog", "Реки и озёра":"eco-river", "Горы":"eco-mountain",
+ "Пустыни и степи":"eco-desert", "Океаны":"eco-ocean",
+ "Вырубка лесов":"thr-deforest", "Пластик и мусор":"thr-plastic", "Изменение климата":"thr-climate",
+ "Нехватка воды":"thr-water", "Браконьерство":"thr-poaching", "Загрязнение воздуха":"thr-air",
+ "Государство":"pro-state", "Сообщество":"pro-community", "Каждый из нас":"pro-person",
+ "Чаткальский заповедник":"uz-chatkal", "Угам-Чаткальский нацпарк":"uz-ugam", "Зааминский нацпарк":"uz-zaamin",
+ "Кызылкумский заповедник":"uz-kyzylkum", "Снежный барс":"uz-leopard", "Бухарский олень":"uz-deer",
+ "Джейран":"uz-gazelle", "Сурок Мензбира":"uz-marmot",
+}
+def photo(name, alt=""):
+    return f'<img class="card-img" src="img/{name}.jpg" alt="{alt}" loading="lazy">'
+
 def card(ic, h3, p, cls="", tag=None):
     tg = f'<span class="tag">{t(*tag)}</span>' if tag else ""
-    return f'<div class="card reveal {cls}"><div class="badge">{icon(ic)}</div>{el("h3", *h3)}{el("p", *p)}{tg}</div>'
+    im = IMG.get(h3[0])
+    top = photo(im, h3[0]) if im else f'<div class="badge">{icon(ic)}</div>'
+    return f'<div class="card reveal {cls}{" has-img" if im else ""}">{top}{el("h3", *h3)}{el("p", *p)}{tg}</div>'
 
 def write(fname, html):
     (OUT / fname).write_text(html, encoding="utf-8")
@@ -158,8 +174,9 @@ links = [
   ("habits.html", "recycle", ("Эко-привычки", "Eko-odatlar"), ("Интерактивный чек-лист: отмечайте полезные привычки.", "Interaktiv roʻyxat: foydali odatlaringizni belgilang.")),
   ("about.html", "bulb", ("О проекте и тест", "Loyiha va test"), ("Зачем этот сайт и проверка ваших знаний.", "Sayt nima uchun va bilimingizni sinab koʻring.")),
 ]
+LIMG={"ecosystems.html":"eco-bog","threats.html":"thr-plastic","protect.html":"hero-protect","uzbekistan.html":"uz-aral2","habits.html":"pro-community","about.html":"hero-about"}
 link_cards = "".join(
-  f'<a href="{h}" class="card reveal"><div class="badge">{icon(ic)}</div>{el("h3", *hh)}{el("p", *pp)}<div class="more">{t("Подробнее →", "Batafsil →")}</div></a>'
+  f'<a href="{h}" class="card reveal has-img">{photo(LIMG[h])}{el("h3", *hh)}{el("p", *pp)}<div class="more">{t("Подробнее →", "Batafsil →")}</div></a>'
   for h, ic, hh, pp in links)
 
 body = hero(
@@ -169,7 +186,7 @@ body = hero(
    "Oʻrmonlar, daryolar, botqoqliklar va togʻlar bizga havo, suv va oziq beradi. Ularga nima tahdid solayotganini va har birimiz bugunoq nima qila olishimizni bilib oling."),
   small=False,
   buttons=f'<div class="btns"><a href="protect.html" class="btn btn-primary">{t("Как помочь природе", "Tabiatga qanday yordam beramiz")}</a><a href="ecosystems.html" class="btn btn-ghost">{t("Узнать больше", "Koʻproq bilish")}</a></div>'
-) + f'''
+, bg="hero-index") + f'''
 <section class="block">
   <div class="container">
     {head(("Почему это важно", "Nega bu muhim"), ("Всё живое на планете связано между собой. Когда исчезает одно звено, страдает вся цепочка — включая человека.", "Sayyoradagi barcha tirik mavjudotlar oʻzaro bogʻliq. Bitta boʻgʻin yoʻqolsa, butun zanjir, jumladan inson ham zarar koʻradi."))}
@@ -202,7 +219,7 @@ write("index.html", layout("index.html", "Главная", "Bosh sahifa", body))
 body = hero(("Как устроена природа", "Tabiat qanday tuzilgan"),
   ("Экосистемы Земли", "Yer ekotizimlari"),
   ("Экосистема — это сообщество живых организмов и среда, в которой они живут. Каждая из них по-своему важна для планеты.",
-   "Ekotizim — tirik organizmlar jamoasi va ular yashaydigan muhit. Ularning har biri sayyora uchun oʻziga xos ahamiyatga ega.")) + f'''
+   "Ekotizim — tirik organizmlar jamoasi va ular yashaydigan muhit. Ularning har biri sayyora uchun oʻziga xos ahamiyatga ega."), bg="hero-ecosystems") + f'''
 <section class="block">
   <div class="container">
     <div class="grid">
@@ -223,7 +240,7 @@ body = hero(("Как устроена природа", "Tabiat qanday tuzilgan")
       {el("p", "Торфяники занимают лишь несколько процентов суши, но хранят больше углерода, чем все леса мира вместе взятые. Когда болото осушают, этот углерод попадает в атмосферу.", "Torfzorlar quruqlikning bir necha foizini egallaydi, lekin dunyodagi barcha oʻrmonlardan koʻproq uglerod saqlaydi. Botqoq quritilganda bu uglerod atmosferaga chiqadi.")}
       {el("p", "Кроме того, болота очищают воду, спасают от наводнений и дают дом перелётным птицам.", "Bundan tashqari, botqoqliklar suvni tozalaydi, toshqindan saqlaydi va koʻchmanchi qushlarga boshpana beradi.")}
     </div>
-    <div class="panel reveal">{icon("bird")}</div>
+    <div class="panel photo reveal"><img src="img/bog-panel.jpg" alt="Болото" loading="lazy"></div>
   </div>
 </section>
 <section class="block">
@@ -245,7 +262,7 @@ write("ecosystems.html", layout("ecosystems.html", "Экосистемы", "Ekot
 body = hero(("Что происходит", "Nima boʻlmoqda"),
   ("Угрозы природе", "Tabiatga tahdidlar"),
   ("Большинство экологических проблем созданы человеком — а значит, человек может их и решить.",
-   "Ekologik muammolarning aksariyati inson tomonidan yaratilgan — demak, inson ularni hal qila oladi ham.")) + f'''
+   "Ekologik muammolarning aksariyati inson tomonidan yaratilgan — demak, inson ularni hal qila oladi ham."), bg="hero-threats") + f'''
 <section class="block">
   <div class="container">
     <div class="stats reveal">
@@ -287,7 +304,7 @@ write("threats.html", layout("threats.html", "Угрозы", "Tahdidlar", body))
 body = hero(("Решения", "Yechimlar"),
   ("Как сохранить природу", "Tabiatni qanday asraymiz"),
   ("Защита природы — это работа на трёх уровнях: государство, сообщество и каждый человек.",
-   "Tabiatni muhofaza qilish uch darajadagi ish: davlat, jamiyat va har bir inson.")) + f'''
+   "Tabiatni muhofaza qilish uch darajadagi ish: davlat, jamiyat va har bir inson."), bg="hero-protect") + f'''
 <section class="block">
   <div class="container">
     <div class="grid">
@@ -308,7 +325,7 @@ body = hero(("Решения", "Yechimlar"),
         <div class="step"><div>{el("h3", "Recycle — перерабатывай", "Recycle — qayta ishlat")}{el("p", "Сортируй бумагу, пластик, стекло и металл и сдавай их в пункты приёма.", "Qogʻoz, plastik, shisha va metallni saralab, qabul punktlariga topshir.")}</div></div>
       </div>
     </div>
-    <div class="panel reveal">{icon("recycle")}</div>
+    <div class="panel photo reveal"><img src="img/pro-recycle.jpg" alt="Раздельный сбор" loading="lazy"></div>
   </div>
 </section>
 <section class="block">
@@ -330,10 +347,11 @@ write("protect.html", layout("protect.html", "Как сохранить", "Qanda
 body = hero(("Наша страна", "Bizning yurt"),
   ("Природа Узбекистана", "Oʻzbekiston tabiati"),
   ("От снежных вершин Чаткала до песков Кызылкума — Узбекистан богат уникальной природой, которую важно сберечь.",
-   "Chotqolning qorli choʻqqilaridan Qizilqum qumlarigacha — Oʻzbekiston noyob tabiatga boy va uni asrash muhim.")) + f'''
+   "Chotqolning qorli choʻqqilaridan Qizilqum qumlarigacha — Oʻzbekiston noyob tabiatga boy va uni asrash muhim."), bg="hero-uzbekistan") + f'''
 <section class="block">
   <div class="container grid-2">
     <div class="reveal">
+      <img class="wide-img" src="img/uz-aral.jpg" alt="Корабль на высохшем дне Арала" loading="lazy">
       {el("h2", "Аральское море", "Orol dengizi")}
       {el("p", "Одна из крупнейших экологических катастроф XX века. Воду рек Амударьи и Сырдарьи стали массово забирать на орошение хлопковых полей, и море начало высыхать.", "XX asrning eng yirik ekologik falokatlaridan biri. Amudaryo va Sirdaryo suvlari paxta dalalarini sugʻorish uchun ommaviy olina boshlandi va dengiz qurib bordi.")}
       {el("p", "На месте дна появилась новая пустыня — Аралкум. Ветер разносит с неё соль и пыль на сотни километров.", "Dengiz tubi oʻrnida yangi choʻl — Orolqum paydo boʻldi. Shamol undan tuz va changni yuzlab kilometrlarga tarqatadi.")}
@@ -402,7 +420,7 @@ checks = "".join(
 body = hero(("Начни с себя", "Oʻzingdan boshla"),
   ("Эко-привычки", "Eko-odatlar"),
   ("Отметьте привычки, которые у вас уже есть. Прогресс сохранится в браузере — возвращайтесь и добавляйте новые.",
-   "Sizda allaqachon bor odatlarni belgilang. Natija brauzerda saqlanadi — qaytib kelib yangilarini qoʻshing.")) + f'''
+   "Sizda allaqachon bor odatlarni belgilang. Natija brauzerda saqlanadi — qaytib kelib yangilarini qoʻshing."), bg="hero-habits") + f'''
 <section class="block">
   <div class="container">
     <div class="section-head">
@@ -447,7 +465,7 @@ window.QUIZ = [
 body = hero(("О нас", "Biz haqimizda"),
   ("О проекте", "Loyiha haqida"),
   ("«Зелёный мир» — образовательный сайт о природе, её проблемах и о том, как каждый может помочь.",
-   "«Yashil dunyo» — tabiat, uning muammolari va har kim qanday yordam bera olishi haqidagi taʼlimiy sayt.")) + f'''
+   "«Yashil dunyo» — tabiat, uning muammolari va har kim qanday yordam bera olishi haqidagi taʼlimiy sayt."), bg="hero-about") + f'''
 <section class="block">
   <div class="container grid-2">
     <div class="reveal">
@@ -456,7 +474,7 @@ body = hero(("О нас", "Biz haqimizda"),
       {el("p", "Сайт работает на двух языках — русском и узбекском, чтобы быть понятным всем жителям Узбекистана.", "Sayt ikki tilda — rus va oʻzbek tillarida ishlaydi, shunda Oʻzbekistonning barcha aholisi uchun tushunarli boʻladi.")}
       {el("p", "Цвета сайта взяты из настоящего мшистого леса — оттенки болота, мха и старой коры.", "Sayt ranglari haqiqiy moxli oʻrmondan olingan — botqoq, mox va eski poʻstloq tuslari.")}
     </div>
-    <div class="panel reveal">{icon("leaf")}</div>
+    <div class="panel photo reveal"><img src="img/hero-about.jpg" alt="Болото на рассвете" loading="lazy"></div>
   </div>
 </section>
 <section class="block alt">
@@ -477,6 +495,12 @@ body = hero(("О нас", "Biz haqimizda"),
     </ul>
   </div>
 </section>'''
+import json as _j
+CRED=_j.load(open(pathlib.Path(__file__).with_name("credits.json")))
+cred_items="".join(f'<li><a href="https://commons.wikimedia.org/wiki/File:{v.replace(" ","_")}" target="_blank" rel="noopener">{v}</a></li>' for v in dict.fromkeys(CRED.values()))
+body += f'''<section class="block alt"><div class="container">
+  {head(("Фотографии", "Fotosuratlar"), ("Все фото взяты с Wikimedia Commons и распространяются по свободным лицензиям (CC / Public Domain). Нажмите на название, чтобы увидеть автора и лицензию.", "Barcha fotosuratlar Wikimedia Commons saytidan olingan va erkin litsenziyalar (CC / Public Domain) asosida tarqatiladi. Muallif va litsenziyani koʻrish uchun nomini bosing."))}
+  <ul class="sources credits">{cred_items}</ul></div></section>'''
 write("about.html", layout("about.html", "О проекте", "Loyiha haqida", body, quiz_js))
 
 print("OK:", [p[0] for p in PAGES])

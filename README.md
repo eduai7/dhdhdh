@@ -16,7 +16,7 @@
 - `uzbekistan.html` — Природа Узбекистана
 - `habits.html` — Эко-привычки (чек-лист, сохраняется в браузере)
 - `about.html` — О проекте + тест
-- `css/style.css`, `js/main.js`
+- `css/style.css`, `js/main.js`, `img/` — фотографии (Wikimedia Commons, свободные лицензии; список авторов на странице «О проекте»)
 - `build.py` — генератор страниц (необязательно). Тексты можно править прямо в HTML
   или в `build.py` и пересобрать: `python3 build.py .`
 
