@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Шахматы — игра вдвоём</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f6f6f4; --paper:#fff; --ink:#111; --muted:#6b6b6b; --line:#dcdcd8;
+  --light:#f0f0ec; --dark:#9c9c98; --sel:rgba(0,0,0,.18); --last:rgba(0,0,0,.10);
+  --sz:min(92vw, calc(100vh - 230px), 640px);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+header{display:flex;align-items:center;justify-content:space-between;max-width:1080px;margin:0 auto;padding:16px 20px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:20px;letter-spacing:-.02em}
+.logo .mini{width:30px;height:30px}
+.hbtns{display:flex;gap:8px}
+.btn{padding:9px 14px;border:1.5px solid var(--ink);border-radius:8px;font-weight:600;font-size:14px;background:var(--paper);transition:background .15s,color .15s}
+.btn:hover{background:var(--ink);color:#fff}
+.btn.solid{background:var(--ink);color:#fff}
+.btn.solid:hover{background:#333}
+.btn.ghost{border-color:var(--line)}
+.btn.ghost:hover{background:#eee;color:var(--ink)}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn:disabled:hover{background:var(--paper);color:var(--ink)}
+.btn:focus-visible,.tc:focus-visible{outline:3px solid #000;outline-offset:2px}
+
+main.game{max-width:1080px;margin:0 auto;padding:0 20px 32px;display:grid;gap:10px 28px;
+  grid-template-columns:var(--sz) 1fr;grid-template-areas:"top side" "board side" "bot side";align-items:start}
+.player{grid-area:top;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px}
+.player.bot{grid-area:bot}
+.pinfo{display:flex;flex-direction:column;gap:2px;min-width:0}
+.pname{font-weight:600;font-size:16px;display:flex;align-items:center;gap:8px}
+.dot{width:12px;height:12px;border-radius:50%;border:1.5px solid var(--ink);flex:none}
+.dot.b{background:var(--ink)}
+.caps{font-size:15px;min-height:22px;white-space:nowrap;overflow:hidden;display:flex;align-items:center}
+.caps .mini{width:18px;height:18px;margin-right:-4px;opacity:.85}
+.caps b{margin-left:8px !important;font-size:13px;font-weight:600;color:var(--ink);margin-left:4px}
+.clock{font-family:"IBM Plex Mono",monospace;font-size:26px;font-weight:600;padding:6px 14px;border-radius:8px;border:1.5px solid var(--line);background:var(--paper);min-width:120px;text-align:right;font-variant-numeric:tabular-nums}
+.clock.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.clock.low.on{animation:pulse 1s infinite}
+.clock.hidden{visibility:hidden}
+@keyframes pulse{50%{background:#444}}
+
+.boardwrap{grid-area:board;position:relative;width:var(--sz);height:var(--sz);border:2px solid var(--ink);border-radius:4px;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+#board{display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);width:100%;height:100%}
+.sq{position:relative;display:flex;align-items:center;justify-content:center}
+.sq.l{background:var(--light)} .sq.d{background:var(--dark)}
+.sq.last::before{content:"";position:absolute;inset:0;background:var(--last)}
+.sq.selected::before{content:"";position:absolute;inset:0;background:var(--sel)}
+.sq.check::after{content:"";position:absolute;inset:0;background:radial-gradient(circle,rgba(0,0,0,.55) 0%,rgba(0,0,0,.25) 45%,transparent 72%)}
+.sq .hint{position:absolute;width:30%;height:30%;border-radius:50%;background:rgba(0,0,0,.28);z-index:3;pointer-events:none}
+.sq .ring{position:absolute;inset:4%;border-radius:50%;border:calc(var(--sz)/95) solid rgba(0,0,0,.3);z-index:3;pointer-events:none}
+.coord{position:absolute;font-size:calc(var(--sz)/52);font-weight:600;z-index:1;pointer-events:none}
+.coord.r{top:3px;left:4px} .coord.f{bottom:2px;right:5px}
+.sq.l .coord{color:var(--dark)} .sq.d .coord{color:var(--light)}
+svg.pc{display:block;overflow:visible}
+svg.pc g{stroke:#111;stroke-width:1.5;stroke-linejoin:round;stroke-linecap:round}
+svg.pc.w g{fill:#fff} svg.pc.b g{fill:#111}
+svg.pc .dt{fill:none} svg.pc.b .dt{stroke:#fff}
+svg.pc.w .dtf{fill:#111} svg.pc.b .dtf{fill:#fff;stroke:none}
+.sq svg.pc{position:absolute;inset:5%;width:90%;height:90%;z-index:2;pointer-events:none;filter:drop-shadow(0 1.5px 0 rgba(0,0,0,.18))}
+.sq svg.pc.lift{opacity:.25}
+.mini{display:inline-block;width:1.25em;height:1.25em;vertical-align:-.28em}
+.mini svg.pc{width:100%;height:100%}
+#ghost{position:fixed;pointer-events:none;z-index:50;transform:translate(-50%,-50%) scale(1.08);display:none;filter:drop-shadow(0 6px 8px rgba(0,0,0,.3))}
+#ghost svg{width:100%;height:100%}
+
+aside{grid-area:side;background:var(--paper);border:1.5px solid var(--line);border-radius:12px;display:flex;flex-direction:column;overflow:hidden;align-self:stretch;min-height:320px;max-height:calc(var(--sz) + 132px)}
+.status{padding:16px 18px;border-bottom:1.5px solid var(--line)}
+.status .t{font-weight:700;font-size:18px}
+.status .s{font-size:13px;color:var(--muted);margin-top:2px}
+.tclabel{font-family:"IBM Plex Mono";font-size:12px;border:1.5px solid var(--line);padding:2px 7px;border-radius:5px;margin-left:6px;color:var(--muted)}
+.moves{flex:1;overflow:auto;padding:6px 0;font-size:15px}
+.mrow{display:grid;grid-template-columns:44px 1fr 1fr;padding:0 10px}
+.mrow:nth-child(even){background:#f7f7f5}
+.mn{color:var(--muted);padding:6px 0 6px 8px;font-family:"IBM Plex Mono";font-size:13px}
+.mv{padding:6px 8px;border-radius:5px;font-weight:500}
+.mv .mini{margin-right:1px}
+.mv.cur svg.pc g{stroke:#fff} .mv.cur svg.pc.w g{fill:#111} .mv.cur svg.pc.w .dtf{fill:#fff}
+.mv.cur{background:var(--ink);color:#fff}
+.empty{color:var(--muted);font-size:14px;padding:18px}
+.result{text-align:center;font-weight:700;padding:10px;font-family:"IBM Plex Mono"}
+.controls{border-top:1.5px solid var(--line);padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.controls .btn{font-size:13px;padding:9px 8px}
+#resignBtn{grid-column:1/-1}
+
+/* modal */
+.overlay{position:fixed;inset:0;background:rgba(10,10,10,.5);display:none;align-items:center;justify-content:center;z-index:100;padding:16px}
+.overlay.open{display:flex}
+.modal{background:var(--paper);border-radius:14px;padding:26px;max-width:460px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25);max-height:90vh;overflow:auto}
+.modal h2{font-size:22px;letter-spacing:-.02em;margin-bottom:6px}
+.modal p{color:var(--muted);font-size:14px;margin-bottom:16px;line-height:1.5}
+.modal .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
+.modal .row .btn{flex:1}
+.lbl{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:16px 0 8px}
+.tcs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tc{border:1.5px solid var(--line);border-radius:9px;padding:10px 6px;text-align:center;background:var(--paper)}
+.tc b{display:block;font-family:"IBM Plex Mono";font-size:17px}
+.tc small{font-size:12px;color:var(--muted)}
+.tc.on{border-color:var(--ink);background:var(--ink);color:#fff}
+.tc.on small{color:#ccc}
+.names{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.names input{font:inherit;font-size:15px;padding:10px 12px;border:1.5px solid var(--line);border-radius:8px;width:100%}
+.names input:focus{outline:none;border-color:var(--ink)}
+.chk{display:flex;align-items:center;gap:8px;font-size:14px;margin-top:14px;cursor:pointer}
+.chk input{width:18px;height:18px;accent-color:#111}
+.promo{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
+.promo button{aspect-ratio:1;border:1.5px solid var(--line);border-radius:10px;background:var(--light);padding:10%}
+.promo svg{width:100%;height:100%}
+.promo button:hover{border-color:var(--ink);background:#e2e2de}
+.bigres{font-family:"IBM Plex Mono";font-size:44px;font-weight:600;text-align:center;margin:8px 0}
+
+/* rules drawer */
+.drawer{position:fixed;top:0;right:0;height:100%;width:min(480px,100%);background:var(--paper);z-index:120;transform:translateX(100%);transition:transform .25s ease;box-shadow:-10px 0 40px rgba(0,0,0,.15);display:flex;flex-direction:column}
+.drawer.open{transform:none}
+.drawer header{border-bottom:1.5px solid var(--line);width:100%;max-width:none}
+.drawer .body{overflow:auto;padding:4px 22px 32px;font-size:15px;line-height:1.6}
+.drawer h3{font-size:16px;margin:20px 0 6px;display:flex;align-items:center;gap:8px}
+.drawer h3 .mini{width:28px;height:28px}
+.drawer ul{padding-left:20px} .drawer li{margin:3px 0}
+.drawer .note{font-size:13px;color:var(--muted);margin-top:22px}
+
+@media (max-width:860px){
+  :root{--sz:min(96vw, calc(100vh - 200px))}
+  header{padding:12px 14px}
+  main.game{grid-template-columns:var(--sz);grid-template-areas:"top" "board" "bot" "side";justify-content:center;padding:0 2vw 24px;gap:8px}
+  aside{max-height:none;min-height:0}
+  .moves{max-height:220px}
+  .clock{font-size:22px;min-width:100px}
+  .controls{grid-template-columns:1fr 1fr 1fr}
+}
+@media (max-width:420px){.controls{grid-template-columns:1fr 1fr}.hbtns .btn{padding:8px 10px}}
+@media (prefers-reduced-motion:reduce){.drawer{transition:none}.clock.low.on{animation:none}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><span class="mini" data-pc="k"></span>Шахматы</div>
+  <div class="hbtns">
+    <button class="btn ghost" id="rulesBtn">Правила</button>
+    <button class="btn solid" id="newBtn">Новая партия</button>
+  </div>
+</header>
+
+<main class="game">
+  <div class="player" id="pTop"></div>
+  <div class="boardwrap" id="wrap"><div id="board"></div></div>
+  <div class="player bot" id="pBot"></div>
+  <aside>
+    <div class="status"><div class="t" id="stT">Ход белых</div><div class="s" id="stS"></div></div>
+    <div class="moves" id="moves"></div>
+    <div class="controls">
+      <button class="btn ghost" id="flipBtn">⇅ Перевернуть</button>
+      <button class="btn ghost" id="pgnBtn">Копировать PGN</button>
+      <button class="btn ghost" id="offerBtn">Предложить ничью</button>
+      <button class="btn ghost" id="claimBtn" disabled>Потребовать ничью</button>
+      <button class="btn" id="resignBtn">Сдаться</button>
+    </div>
+  </aside>
+</main>
+<div id="ghost"></div>
+
+<div class="overlay" id="ov"><div class="modal" id="modal"></div></div>
+
+<div class="drawer" id="drawer" aria-hidden="true">
+  <header><div class="logo" style="font-size:18px">Правила шахмат</div><button class="btn ghost" id="closeRules">Закрыть</button></header>
+  <div class="body">
+    <h3>Цель игры</h3>
+    <p>Двое игроков ходят по очереди, первыми ходят белые. Цель — поставить мат: король соперника под ударом (шах), и у соперника нет ни одного хода, чтобы этот шах убрать. Ходить так, чтобы собственный король остался под ударом, нельзя.</p>
+    <h3><span class="mini" data-pc="k"></span> Король</h3>
+    <p>Ходит на одну клетку в любом направлении.</p>
+    <h3><span class="mini" data-pc="q"></span> Ферзь</h3>
+    <p>Ходит на любое число клеток по вертикали, горизонтали и диагонали.</p>
+    <h3><span class="mini" data-pc="r"></span> Ладья</h3>
+    <p>Ходит на любое число клеток по вертикали и горизонтали.</p>
+    <h3><span class="mini" data-pc="b"></span> Слон</h3>
+    <p>Ходит на любое число клеток по диагонали и поэтому всегда остаётся на полях одного цвета.</p>
+    <h3><span class="mini" data-pc="n"></span> Конь</h3>
+    <p>Ходит буквой «Г»: на две клетки в одну сторону и на одну вбок. Единственная фигура, которая может перепрыгивать через другие.</p>
+    <h3><span class="mini" data-pc="p"></span> Пешка</h3>
+    <ul>
+      <li>Ходит на одну клетку вперёд, а с начальной позиции может пойти на две.</li>
+      <li>Бьёт только по диагонали вперёд на одну клетку.</li>
+      <li><b>Взятие на проходе:</b> если пешка соперника прошла с начальной позиции две клетки и встала рядом с вашей, её можно взять так, будто она сделала один шаг. Это можно сделать только сразу, следующим ходом.</li>
+      <li><b>Превращение:</b> дойдя до последней горизонтали, пешка становится ферзём, ладьёй, слоном или конём на выбор.</li>
+    </ul>
+    <h3>Рокировка</h3>
+    <p>Король сдвигается на две клетки к ладье, а ладья перепрыгивает через него. Рокировка возможна, если:</p>
+    <ul>
+      <li>ни король, ни эта ладья ещё не ходили;</li>
+      <li>между ними нет фигур;</li>
+      <li>король не стоит под шахом, не проходит через битое поле и не встаёт на него.</li>
+    </ul>
+    <h3>Ничья</h3>
+    <ul>
+      <li><b>Пат</b> — у игрока нет допустимых ходов, но шаха нет.</li>
+      <li><b>Недостаточно материала</b> — мат невозможен (например, король против короля или короля со слоном).</li>
+      <li><b>Троекратное повторение</b> позиции — ничью можно потребовать; при пятикратном она наступает автоматически.</li>
+      <li><b>Правило 50 ходов</b> — 50 ходов каждой стороны без взятий и ходов пешками: ничью можно потребовать; после 75 ходов она наступает автоматически.</li>
+      <li><b>По соглашению</b> — один игрок предлагает ничью, другой соглашается.</li>
+    </ul>
+    <h3>Время</h3>
+    <p>У каждого игрока свои часы. «3+2» — 3 минуты на партию плюс 2 секунды за каждый ход. Если время кончилось, игрок проигрывает. Но если у соперника не хватает фигур, чтобы поставить мат, засчитывается ничья.</p>
+    <p class="note">Правила соответствуют Правилам шахмат FIDE (Международной шахматной федерации).</p>
+  </div>
+</div>
+
+<script>
+(() => {
+"use strict";
+// Векторные фигуры, сетка 45×45, общая база y=36..40
+const BASE = '<rect x="9.5" y="35" width="26" height="5" rx="2"/>';
+const PIECES = {
+  p: `<circle cx="22.5" cy="13" r="5"/>
+      <path d="M17.5 20.5h10l-1.5 2.5h-7z"/>
+      <path d="M19.2 23c0 5-2.2 8.6-5.2 12h17c-3-3.4-5.2-7-5.2-12z"/>${BASE}`,
+  r: `<path d="M12.5 8.5h4v3h3.6v-3h4.8v3h3.6v-3h4v6.5h-20z"/>
+      <path d="M14.5 15h16l-1.3 15.5h-13.4z"/>
+      <rect x="12.5" y="30.5" width="20" height="4.5" rx="1"/>${BASE}
+      <path class="dt" d="M15 18.5h15M16 27.5h13"/>`,
+  b: `<circle cx="22.5" cy="6.3" r="2.4"/>
+      <path d="M22.5 9C16.5 13.5 15 19 17.2 23.5h10.6C30 19 28.5 13.5 22.5 9z"/>
+      <rect x="16.5" y="23.5" width="12" height="3.2" rx="1.2"/>
+      <path d="M17.5 26.7c-.4 3.6-1.8 6-3.5 8.3h17c-1.7-2.3-3.1-4.7-3.5-8.3z"/>${BASE}
+      <path class="dt" d="M22.5 13.5v6M19.5 16.5h6"/>`,
+  n: `<path d="M14 35c0-5.5 2.2-8.6 6.6-12.5-2.8.3-5.3 1.4-7.4 3.1-1.7 1.4-3.9.6-4.2-1.4-.2-1.6.6-2.9 1.9-4.4 2.9-3.4 5.3-6.2 6.6-10.3l.9-3 2.4 3.1c1-.8 2.4-1.2 4.2-1.1 6.6.5 10.9 6 10.9 14.4 0 5.4-1 9.5-2 12.1z"/>${BASE}
+      <circle class="dtf" cx="17.6" cy="14.6" r="1.3"/>
+      <path class="dt" d="M26.5 12.5c2.6 2.4 3.8 6.5 3.4 12"/>`,
+  q: `<circle cx="9.5" cy="12" r="2.2"/><circle cx="16" cy="9" r="2.2"/><circle cx="22.5" cy="7.5" r="2.2"/><circle cx="29" cy="9" r="2.2"/><circle cx="35.5" cy="12" r="2.2"/>
+      <path d="M14.5 25 9.8 13.5l6.2 6.4.2-9.8 4 9 2.3-10 2.3 10 4-9 .2 9.8 6.2-6.4-4.7 11.5z"/>
+      <rect x="14" y="24.5" width="17" height="3.4" rx="1.3"/>
+      <path d="M15.2 27.9c-.3 3-1.4 5-3 7.1h20.6c-1.6-2.1-2.7-4.1-3-7.1z"/>${BASE}`,
+  k: `<path d="M21.3 3.5h2.4v3h3v2.4h-3v7h-2.4v-7h-3V6.5h3z"/>
+      <path d="M15.5 25c-4.6-4.3-4.6-11.3.8-12 3-.4 5 1.5 6.2 4.3 1.2-2.8 3.2-4.7 6.2-4.3 5.4.7 5.4 7.7.8 12z"/>
+      <rect x="14.5" y="24.5" width="16" height="3.4" rx="1.3"/>
+      <path d="M15.7 27.9c-.3 3-1.4 5-3 7.1h19.6c-1.6-2.1-2.7-4.1-3-7.1z"/>${BASE}
+      <path class="dt" d="M22.5 17.5v7"/>`
+};
+function pieceSVG(p, cls = "") {
+  const t = p.toLowerCase(), c = p === p.toUpperCase() ? "w" : "b";
+  return `<svg class="pc ${c} ${cls}" viewBox="2.5 2.5 40 40" data-p="${p}" aria-label="${p}"><g>${PIECES[t]}</g></svg>`;
+}
+
+document.querySelectorAll("[data-pc]").forEach(e=>e.innerHTML=pieceSVG(e.dataset.pc));
+
+const FILES = "abcdefgh";
+const VS = "︎";
+const SOLID = {k:"♚",q:"♛",r:"♜",b:"♝",n:"♞",p:"♟"};
+const OUTL  = {k:"♔",q:"♕",r:"♖",b:"♗",n:"♘",p:"♙"};
+const VAL = {p:1,n:3,b:3,r:5,q:9,k:0};
+const START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+const TCS = [
+  ["∞","Без часов",0,0],["1+0","Пуля",1,0],["2+1","Пуля",2,1],
+  ["3+0","Блиц",3,0],["3+2","Блиц",3,2],["5+0","Блиц",5,0],
+  ["10+0","Рапид",10,0],["15+10","Рапид",15,10],["30+0","Классика",30,0]
+];
+const $ = id => document.getElementById(id);
+const colorOf = p => p === p.toUpperCase() ? "w" : "b";
+const opp = c => c === "w" ? "b" : "w";
+const sqName = i => FILES[i & 7] + (8 - (i >> 3));
+const glyph = (p) => SOLID[p.toLowerCase()] + VS;
+
+/* ---------- Движок правил ---------- */
+function parseFEN(fen){
+  const [pl,t,c,e,h,f] = fen.split(" ");
+  const b = [];
+  for (const ch of pl.replace(/\//g,"")) { if (/\d/.test(ch)) for (let i=0;i<+ch;i++) b.push(null); else b.push(ch); }
+  return {b, turn:t, castle:{K:c.includes("K"),Q:c.includes("Q"),k:c.includes("k"),q:c.includes("q")},
+    ep: e==="-"?null:(8-(+e[1]))*8+FILES.indexOf(e[0]), half:+h, full:+f};
+}
+const KN = [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
+const KG = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+const DIAG = [[-1,-1],[-1,1],[1,-1],[1,1]], ORTH = [[-1,0],[1,0],[0,-1],[0,1]];
+const inB = (r,f) => r>=0 && r<8 && f>=0 && f<8;
+
+function attacked(b, sq, by){
+  const r = sq>>3, f = sq&7;
+  const pr = by==="w" ? r+1 : r-1, P = by==="w" ? "P" : "p";
+  for (const df of [-1,1]) if (inB(pr,f+df) && b[pr*8+f+df]===P) return true;
+  const N = by==="w"?"N":"n", K = by==="w"?"K":"k";
+  for (const [dr,df] of KN) if (inB(r+dr,f+df) && b[(r+dr)*8+f+df]===N) return true;
+  for (const [dr,df] of KG) if (inB(r+dr,f+df) && b[(r+dr)*8+f+df]===K) return true;
+  const B = by==="w"?"B":"b", R = by==="w"?"R":"r", Q = by==="w"?"Q":"q";
+  for (const [dirs, a] of [[DIAG,B],[ORTH,R]]) for (const [dr,df] of dirs){
+    let rr=r+dr, ff=f+df;
+    while (inB(rr,ff)) { const p = b[rr*8+ff]; if (p){ if (p===a||p===Q) return true; break; } rr+=dr; ff+=df; }
+  }
+  return false;
+}
+const kingSq = (b,c) => b.indexOf(c==="w"?"K":"k");
+
+function pseudo(s){
+  const mv = [], c = s.turn, b = s.b;
+  const add = (from,to,x={}) => mv.push(Object.assign({from,to,piece:b[from],captured:b[to]},x));
+  for (let sq=0; sq<64; sq++){
+    const p = b[sq]; if (!p || colorOf(p)!==c) continue;
+    const t = p.toLowerCase(), r = sq>>3, f = sq&7;
+    if (t==="p"){
+      const dir = c==="w"?-1:1, st = c==="w"?6:1, last = c==="w"?0:7, r1 = r+dir;
+      if (!inB(r1,f)) continue;
+      const to = r1*8+f;
+      if (!b[to]){
+        if (r1===last) for (const pr of "qrbn") add(sq,to,{promo:pr}); else add(sq,to);
+        if (r===st && !b[(r+2*dir)*8+f]) add(sq,(r+2*dir)*8+f,{double:true});
+      }
+      for (const df of [-1,1]){
+        if (!inB(r1,f+df)) continue;
+        const t2 = r1*8+f+df, q = b[t2];
+        if (q && colorOf(q)!==c){ if (r1===last) for (const pr of "qrbn") add(sq,t2,{promo:pr}); else add(sq,t2); }
+        else if (t2===s.ep) add(sq,t2,{ep:true,captured:c==="w"?"p":"P"});
+      }
+    } else if (t==="n" || t==="k"){
+      for (const [dr,df] of (t==="n"?KN:KG)){
+        if (!inB(r+dr,f+df)) continue;
+        const to=(r+dr)*8+f+df, q=b[to];
+        if (!q || colorOf(q)!==c) add(sq,to);
+      }
+      if (t==="k"){
+        const e = opp(c);
+        if (c==="w" && sq===60){
+          if (s.castle.K && !b[61] && !b[62] && b[63]==="R" && !attacked(b,60,e) && !attacked(b,61,e) && !attacked(b,62,e)) add(60,62,{castle:"K"});
+          if (s.castle.Q && !b[59] && !b[58] && !b[57] && b[56]==="R" && !attacked(b,60,e) && !attacked(b,59,e) && !attacked(b,58,e)) add(60,58,{castle:"Q"});
+        }
+        if (c==="b" && sq===4){
+          if (s.castle.k && !b[5] && !b[6] && b[7]==="r" && !attacked(b,4,e) && !attacked(b,5,e) && !attacked(b,6,e)) add(4,6,{castle:"K"});
+          if (s.castle.q && !b[3] && !b[2] && !b[1] && b[0]==="r" && !attacked(b,4,e) && !attacked(b,3,e) && !attacked(b,2,e)) add(4,2,{castle:"Q"});
+        }
+      }
+    } else {
+      const dirs = t==="b"?DIAG : t==="r"?ORTH : DIAG.concat(ORTH);
+      for (const [dr,df] of dirs){
+        let rr=r+dr, ff=f+df;
+        while (inB(rr,ff)){ const to=rr*8+ff, q=b[to]; if (q){ if (colorOf(q)!==c) add(sq,to); break; } add(sq,to); rr+=dr; ff+=df; }
+      }
+    }
+  }
+  return mv;
+}
+function make(s, m){
+  const b = s.b.slice(), c = s.turn;
+  b[m.to] = m.promo ? (c==="w"?m.promo.toUpperCase():m.promo) : m.piece;
+  b[m.from] = null;
+  if (m.ep) b[(m.from>>3)*8 + (m.to&7)] = null;
+  if (m.castle){
+    const rk = {62:[63,61],58:[56,59],6:[7,5],2:[0,3]}[m.to];
+    b[rk[1]] = b[rk[0]]; b[rk[0]] = null;
+  }
+  const cs = Object.assign({}, s.castle);
+  if (m.piece==="K"){cs.K=cs.Q=false} if (m.piece==="k"){cs.k=cs.q=false}
+  const corner = {63:"K",56:"Q",7:"k",0:"q"};
+  if (corner[m.from]) cs[corner[m.from]]=false;
+  if (corner[m.to]) cs[corner[m.to]]=false;
+  return {b, turn:opp(c), castle:cs, ep: m.double ? (m.from+m.to)/2 : null,
+    half: (m.piece.toLowerCase()==="p" || m.captured) ? 0 : s.half+1,
+    full: c==="b" ? s.full+1 : s.full};
+}
+function legal(s){
+  return pseudo(s).filter(m => { const n = make(s,m); return !attacked(n.b, kingSq(n.b,s.turn), n.turn); });
+}
+const inCheck = s => attacked(s.b, kingSq(s.b,s.turn), opp(s.turn));
+function posKey(s, lm){
+  const cs = (s.castle.K?"K":"")+(s.castle.Q?"Q":"")+(s.castle.k?"k":"")+(s.castle.q?"q":"");
+  const epOk = s.ep!==null && lm.some(m=>m.ep);
+  return s.b.map(p=>p||".").join("") + s.turn + cs + (epOk ? s.ep : "-");
+}
+function insufficient(b){
+  const minors = [];
+  for (let i=0;i<64;i++){ const p=b[i]; if(!p) continue; const t=p.toLowerCase();
+    if (t==="p"||t==="r"||t==="q") return false;
+    if (t==="n"||t==="b") minors.push([t,i]); }
+  if (minors.length<=1) return true;
+  if (minors.every(([t])=>t==="b")){ const col = ([,i]) => ((i>>3)+(i&7))%2; return minors.every(m=>col(m)===col(minors[0])); }
+  return false;
+}
+// Может ли сторона c поставить мат хоть какой-то серией ходов (для флажка по FIDE 6.9)
+function canMate(b, c){
+  const mine = b.filter(p=>p && colorOf(p)===c && p.toLowerCase()!=="k").map(p=>p.toLowerCase());
+  const theirs = b.filter(p=>p && colorOf(p)!==c && p.toLowerCase()!=="k");
+  if (!mine.length) return false;
+  if (mine.length===1 && (mine[0]==="n"||mine[0]==="b") && !theirs.length) return false;
+  return true;
+}
+function fig(t, c){ return (c==="w"?OUTL:SOLID)[t] + VS; }
+function san(s, m, lm){
+  let out;
+  if (m.castle) out = m.castle==="K" ? "O-O" : "O-O-O";
+  else {
+    const t = m.piece.toLowerCase(), c = colorOf(m.piece);
+    if (t==="p"){
+      out = (m.captured ? FILES[m.from&7]+"x" : "") + sqName(m.to) + (m.promo ? "="+fig(m.promo,c) : "");
+    } else {
+      const others = lm.filter(o => o.piece===m.piece && o.to===m.to && o.from!==m.from);
+      let d = "";
+      if (others.length){
+        const sf = others.some(o=>(o.from&7)===(m.from&7)), sr = others.some(o=>(o.from>>3)===(m.from>>3));
+        d = !sf ? FILES[m.from&7] : !sr ? String(8-(m.from>>3)) : sqName(m.from);
+      }
+      out = fig(t,c) + d + (m.captured?"x":"") + sqName(m.to);
+    }
+  }
+  const n = make(s,m);
+  if (inCheck(n)) out += legal(n).length ? "+" : "#";
+  return out;
+}
+const PGNL = {k:"K",q:"Q",r:"R",b:"B",n:"N"};
+const toLatin = x => x.replace(/[♔♕♖♗♘♚♛♜♝♞]︎?/g, ch => PGNL[({"♔":"k","♕":"q","♖":"r","♗":"b","♘":"n","♚":"k","♛":"q","♜":"r","♝":"b","♞":"n"})[ch[0]]]);
+
+/* ---------- Состояние партии ---------- */
+let G = null, flipped = false, autoFlip = false, sel = null, drag = null, timer = null;
+let setup = {tc:4, white:"", black:"", autoFlip:false};
+
+function newGame(opts){
+  const tc = TCS[opts.tc];
+  const st = parseFEN(START);
+  const lm = legal(st);
+  G = { s:st, lm, hist:[], counts:{[posKey(st,lm)]:1}, over:null,
+        names:{w:opts.white.trim()||"Белые", b:opts.black.trim()||"Чёрные"},
+        tcLabel: tc[0], timed: tc[2]>0, inc: tc[3]*1000,
+        time:{w:tc[2]*60000, b:tc[2]*60000}, running:false, last:0 };
+  autoFlip = opts.autoFlip; flipped = false; sel = null;
+  clearInterval(timer); timer = setInterval(tick, 100);
+  render();
+}
+function tick(){
+  if (!G || !G.timed || !G.running || G.over) return;
+  const now = performance.now(), c = G.s.turn;
+  G.time[c] -= now - G.last; G.last = now;
+  if (G.time[c] <= 0){
+    G.time[c] = 0;
+    const winner = opp(c);
+    if (canMate(G.s.b, winner)) endGame(winner==="w"?"1–0":"0–1", `Время ${c==="w"?"белых":"чёрных"} истекло`);
+    else endGame("½–½", "Время истекло, но у соперника недостаточно материала для мата");
+  }
+  renderClocks();
+}
+function commit(m){
+  if (G.over) return;
+  const now = performance.now();
+  if (G.timed && G.running){ G.time[G.s.turn] -= now - G.last; if (G.time[G.s.turn] <= 0){ tick(); return; } }
+  const mover = G.s.turn;
+  const notation = san(G.s, m, G.lm);
+  G.s = make(G.s, m);
+  G.lm = legal(G.s);
+  const key = posKey(G.s, G.lm);
+  G.counts[key] = (G.counts[key]||0) + 1;
+  G.hist.push({san:notation, m, key});
+  if (G.timed){
+    G.time[mover] += G.inc;
+    if (!G.running && mover==="w") G.running = true;
+    G.last = now;
+  }
+  sel = null;
+  if (!G.lm.length){
+    if (inCheck(G.s)) endGame(mover==="w"?"1–0":"0–1", `Мат. Победили ${mover==="w"?"белые":"чёрные"}`);
+    else endGame("½–½", "Пат — у соперника нет ходов, но шаха нет");
+  } else if (insufficient(G.s.b)) endGame("½–½", "Недостаточно материала для мата");
+  else if (G.counts[key] >= 5) endGame("½–½", "Пятикратное повторение позиции");
+  else if (G.s.half >= 150) endGame("½–½", "Правило 75 ходов");
+  if (autoFlip && !G.over) flipped = G.s.turn==="b";
+  render();
+}
+function endGame(result, reason){
+  G.over = {result, reason}; G.running = false; sel = null;
+  render();
+  setTimeout(() => modal(`
+    <div class="bigres">${result}</div>
+    <h2 style="text-align:center">${result==="½–½"?"Ничья":result==="1–0"?G.names.w+" выиграл(а)":G.names.b+" выиграл(а)"}</h2>
+    <p style="text-align:center">${reason}</p>
+    <div class="row"><button class="btn ghost" data-a="close">Посмотреть доску</button><button class="btn solid" data-a="new">Новая партия</button></div>`), 250);
+}
+const claimable = () => G && !G.over && (G.counts[G.hist.length?G.hist[G.hist.length-1].key:Object.keys(G.counts)[0]]>=3 || G.s.half>=100);
+
+/* ---------- Отрисовка ---------- */
+const board = $("board");
+function render(){
+  const s = G.s, b = s.b;
+  const last = G.hist.length ? G.hist[G.hist.length-1].m : null;
+  const chk = !G.over || G.over.reason.startsWith("Мат") ? (inCheck(s) ? kingSq(b,s.turn) : -1) : -1;
+  const targets = sel!==null ? G.lm.filter(m=>m.from===sel) : [];
+  let html = "";
+  for (let vr=0; vr<8; vr++) for (let vf=0; vf<8; vf++){
+    const r = flipped?7-vr:vr, f = flipped?7-vf:vf, i = r*8+f, p = b[i];
+    let cls = "sq " + ((r+f)%2 ? "d" : "l");
+    if (last && (i===last.from || i===last.to)) cls += " last";
+    if (i===sel) cls += " selected";
+    if (i===chk) cls += " check";
+    let inner = "";
+    if (vf===0) inner += `<span class="coord r">${8-r}</span>`;
+    if (vr===7) inner += `<span class="coord f">${FILES[f]}</span>`;
+    if (p) inner += pieceSVG(p, drag&&drag.moved&&drag.sq===i ? "lift" : "");
+    const t = targets.find(m=>m.to===i);
+    if (t) inner += (t.captured ? `<span class="ring"></span>` : `<span class="hint"></span>`);
+    html += `<div class="${cls}" data-i="${i}">${inner}</div>`;
+  }
+  board.innerHTML = html;
+  renderPlayers(); renderMoves(); renderStatus(); renderClocks();
+}
+function material(c){
+  const init = {p:8,n:2,b:2,r:2,q:1};
+  const cur = {p:0,n:0,b:0,r:0,q:0};
+  G.s.b.forEach(p => { if (p && colorOf(p)!==c && p.toLowerCase()!=="k") cur[p.toLowerCase()]++; });
+  let str = "";
+  for (const t of "qrbnp") for (let k=0;k<Math.max(0,init[t]-cur[t]);k++) str += `<span class="mini">${pieceSVG(c==="w"?t:t.toUpperCase())}</span>`;
+  return str;
+}
+function score(c){ return G.s.b.reduce((a,p)=>a + (p && colorOf(p)===c ? VAL[p.toLowerCase()] : 0), 0); }
+function playerHTML(c){
+  const diff = score(c) - score(opp(c));
+  return `<div class="pinfo"><div class="pname"><span class="dot ${c}"></span>${esc(G.names[c])}</div>
+    <div class="caps">${material(c)}${diff>0?`<b>+${diff}</b>`:""}</div></div>
+    <div class="clock${G.timed?"":" hidden"}" id="clk-${c}"></div>`;
+}
+function renderPlayers(){ $("pTop").innerHTML = playerHTML(flipped?"w":"b"); $("pBot").innerHTML = playerHTML(flipped?"b":"w"); }
+function fmt(ms){
+  ms = Math.max(0, ms);
+  if (ms < 10000) return (Math.floor(ms/100)/10).toFixed(1);
+  const t = Math.ceil(ms/1000), h = Math.floor(t/3600), m = Math.floor(t%3600/60), sec = t%60;
+  return (h? h+":"+String(m).padStart(2,"0") : m) + ":" + String(sec).padStart(2,"0");
+}
+function renderClocks(){
+  if (!G.timed) return;
+  for (const c of ["w","b"]){
+    const el = $("clk-"+c); if (!el) continue;
+    el.textContent = fmt(G.time[c]);
+    const on = !G.over && G.s.turn===c && (G.running || c==="w");
+    el.classList.toggle("on", on);
+    el.classList.toggle("low", G.time[c] < 20000);
+  }
+}
+function renderMoves(){
+  const el = $("moves");
+  if (!G.hist.length){ el.innerHTML = `<div class="empty">Ходов пока нет. Белые начинают — перетащите фигуру или нажмите на неё.</div>`; return; }
+  const GL = {"♔":"K","♕":"Q","♖":"R","♗":"B","♘":"N","♚":"k","♛":"q","♜":"r","♝":"b","♞":"n"};
+  const wrap = x => x.replace(/([♔♕♖♗♘♚♛♜♝♞])\uFE0E?/g,(_,g)=>`<span class="mini">${pieceSVG(GL[g])}</span>`);
+  let html = "";
+  for (let i=0;i<G.hist.length;i+=2){
+    const cur = n => n===G.hist.length-1 ? " cur" : "";
+    html += `<div class="mrow"><span class="mn">${i/2+1}.</span><span class="mv${cur(i)}">${wrap(G.hist[i].san)}</span><span class="mv${cur(i+1)}">${G.hist[i+1]?wrap(G.hist[i+1].san):""}</span></div>`;
+  }
+  if (G.over) html += `<div class="result">${G.over.result}</div>`;
+  el.innerHTML = html;
+  el.scrollTop = el.scrollHeight;
+}
+function renderStatus(){
+  const t = $("stT"), s = $("stS");
+  if (G.over){ t.textContent = G.over.result==="½–½" ? "Ничья" : (G.over.result==="1–0"?"Победа белых":"Победа чёрных"); s.textContent = G.over.reason; }
+  else {
+    t.innerHTML = `Ход ${G.s.turn==="w"?"белых":"чёрных"}${inCheck(G.s)?" — шах!":""}<span class="tclabel">${G.tcLabel}</span>`;
+    s.textContent = G.timed && !G.running ? "Часы запустятся после первого хода белых" : (claimable() ? "Можно потребовать ничью" : `Ход ${G.s.full}`);
+  }
+  $("claimBtn").disabled = !claimable();
+  $("offerBtn").disabled = !!G.over;
+  $("resignBtn").disabled = !!G.over;
+}
+const esc = x => x.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
+
+/* ---------- Ввод: клик и перетаскивание ---------- */
+const wrapEl = $("wrap"), ghost = $("ghost");
+function sqAt(x, y){
+  const r = wrapEl.getBoundingClientRect();
+  const size = r.width/8;
+  const vc = Math.floor((x-r.left)/size), vr = Math.floor((y-r.top)/size);
+  if (vc<0||vc>7||vr<0||vr>7) return null;
+  return (flipped?7-vr:vr)*8 + (flipped?7-vc:vc);
+}
+function tryMove(from, to){
+  const ms = G.lm.filter(m=>m.from===from && m.to===to);
+  if (!ms.length) return false;
+  if (ms.length>1) askPromo(ms); else commit(ms[0]);
+  return true;
+}
+wrapEl.addEventListener("pointerdown", e => {
+  if (!G || G.over) return;
+  const i = sqAt(e.clientX, e.clientY); if (i===null) return;
+  if (sel!==null && sel!==i && tryMove(sel, i)) return;
+  const p = G.s.b[i];
+  if (p && colorOf(p)===G.s.turn){
+    sel = i;
+    drag = {sq:i, x:e.clientX, y:e.clientY, moved:false};
+    wrapEl.setPointerCapture(e.pointerId);
+    render();
+  } else { sel = null; render(); }
+});
+wrapEl.addEventListener("pointermove", e => {
+  if (!drag) return;
+  if (!drag.moved && Math.hypot(e.clientX-drag.x, e.clientY-drag.y) > 5){
+    drag.moved = true;
+    const p = G.s.b[drag.sq];
+    const sz = wrapEl.getBoundingClientRect().width/8*.9;
+    ghost.style.width = ghost.style.height = sz+"px";
+    ghost.innerHTML = pieceSVG(p);
+    ghost.style.display = "block";
+    render();
+  }
+  if (drag.moved){ ghost.style.left = e.clientX+"px"; ghost.style.top = e.clientY+"px"; }
+});
+function endDrag(e){
+  if (!drag) return;
+  const d = drag; drag = null; ghost.style.display = "none";
+  if (d.moved){
+    const to = sqAt(e.clientX, e.clientY);
+    if (to===null || to===d.sq || !tryMove(d.sq, to)) render();
+  }
+}
+wrapEl.addEventListener("pointerup", endDrag);
+wrapEl.addEventListener("pointercancel", () => { drag=null; ghost.style.display="none"; render(); });
+
+/* ---------- Диалоги ---------- */
+const ov = $("ov"), md = $("modal");
+let modalHandler = null;
+function modal(html, handler){ md.innerHTML = html; modalHandler = handler||null; ov.classList.add("open"); const f = md.querySelector(".row .btn.solid") || md.querySelector(".row .btn"); f && f.focus(); }
+function closeModal(){ ov.classList.remove("open"); modalHandler = null; }
+ov.addEventListener("click", e => {
+  const btn = e.target.closest("button");
+  if (!btn){ if (e.target===ov && G && md.dataset.lock!=="1") closeModal(); return; }
+  const a = btn.dataset.a;
+  if (a==="close") closeModal();
+  else if (a==="new") openSetup();
+  else if (modalHandler) modalHandler(a, btn);
+});
+document.addEventListener("keydown", e => {
+  if (e.key==="Escape"){ if ($("drawer").classList.contains("open")) toggleRules(false); else if (ov.classList.contains("open") && md.dataset.lock!=="1") closeModal(); }
+});
+
+function askPromo(ms){
+  const c = G.s.turn;
+  md.dataset.lock = "1";
+  modal(`<h2>Превращение пешки</h2><p>Выберите фигуру, в которую превратится пешка.</p>
+    <div class="promo">${"qrbn".split("").map(t=>`<button data-a="${t}" title="${{q:"Ферзь",r:"Ладья",b:"Слон",n:"Конь"}[t]}">${pieceSVG(c==="w"?t.toUpperCase():t)}</button>`).join("")}</div>
+    <div class="row"><button class="btn ghost" data-a="cancel">Отмена</button></div>`,
+  a => { md.dataset.lock = "0"; closeModal(); if (a==="cancel"){ sel=null; render(); return; } commit(ms.find(m=>m.promo===a)); });
+}
+
+function openSetup(){
+  md.dataset.lock = G ? "0" : "1";
+  const draw = () => modal(`
+    <h2>Новая партия</h2>
+    <p>Игра вдвоём за одним устройством. Выберите контроль времени.</p>
+    <div class="lbl">Контроль времени</div>
+    <div class="tcs">${TCS.map((t,i)=>`<button class="tc${i===setup.tc?" on":""}" data-a="tc" data-i="${i}"><b>${t[0]}</b><small>${t[1]}</small></button>`).join("")}</div>
+    <div class="lbl">Игроки</div>
+    <div class="names"><input id="nW" placeholder="Белые" maxlength="24" value="${esc(setup.white)}"><input id="nB" placeholder="Чёрные" maxlength="24" value="${esc(setup.black)}"></div>
+    <label class="chk"><input type="checkbox" id="af" ${setup.autoFlip?"checked":""}> Поворачивать доску к тому, чей ход</label>
+    <div class="row">${G?`<button class="btn ghost" data-a="close">Отмена</button>`:""}<button class="btn solid" data-a="start">Начать партию</button></div>`,
+  (a, btn) => {
+    setup.white = $("nW").value; setup.black = $("nB").value; setup.autoFlip = $("af").checked;
+    if (a==="tc"){ setup.tc = +btn.dataset.i; draw(); }
+    if (a==="start"){ md.dataset.lock="0"; closeModal(); newGame(setup); }
+  });
+  draw();
+}
+
+$("newBtn").onclick = () => {
+  if (G && !G.over && G.hist.length){
+    modal(`<h2>Начать заново?</h2><p>Текущая партия ещё не закончена и будет потеряна.</p><div class="row"><button class="btn ghost" data-a="close">Отмена</button><button class="btn solid" data-a="new">Новая партия</button></div>`);
+  } else openSetup();
+};
+$("flipBtn").onclick = () => { flipped = !flipped; render(); };
+$("resignBtn").onclick = () => {
+  if (G.over) return;
+  modal(`<h2>Сдаться?</h2><p>Выберите, какая сторона сдаётся.</p>
+    <div class="row"><button class="btn" data-a="w">Сдаются белые</button><button class="btn" data-a="b">Сдаются чёрные</button></div>
+    <div class="row" style="margin-top:8px"><button class="btn ghost" data-a="close">Отмена</button></div>`,
+  a => { closeModal(); endGame(a==="w"?"0–1":"1–0", `${a==="w"?"Белые":"Чёрные"} сдались`); });
+};
+$("offerBtn").onclick = () => {
+  if (G.over) return;
+  const c = G.s.turn, o = opp(c);
+  modal(`<h2>Предложение ничьей</h2><p>${esc(G.names[c])} (${c==="w"?"белые":"чёрные"}) предлагает ничью. ${esc(G.names[o])}, вы согласны?</p>
+    <div class="row"><button class="btn ghost" data-a="no">Отклонить</button><button class="btn solid" data-a="yes">Согласиться</button></div>`,
+  a => { closeModal(); if (a==="yes") endGame("½–½", "Ничья по соглашению"); });
+};
+$("claimBtn").onclick = () => {
+  if (!claimable()) return;
+  const lastKey = G.hist[G.hist.length-1].key;
+  endGame("½–½", G.counts[lastKey]>=3 ? "Троекратное повторение позиции" : "Правило 50 ходов");
+};
+$("pgnBtn").onclick = async () => {
+  const d = new Date(), date = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")}`;
+  const res = G.over ? G.over.result.replace("–","-").replace("½-½","1/2-1/2") : "*";
+  let moves = "";
+  G.hist.forEach((h,i)=>{ if (i%2===0) moves += (i/2+1)+". "; moves += toLatin(h.san).replace(/︎/g,"") + " "; });
+  const pgn = `[Event "Партия"]\n[Date "${date}"]\n[White "${G.names.w}"]\n[Black "${G.names.b}"]\n[TimeControl "${G.tcLabel}"]\n[Result "${res}"]\n\n${moves}${res}`;
+  const btn = $("pgnBtn");
+  try { await navigator.clipboard.writeText(pgn); btn.textContent = "Скопировано ✓"; }
+  catch { modal(`<h2>PGN партии</h2><p>Выделите и скопируйте текст.</p><textarea style="width:100%;height:180px;font-family:IBM Plex Mono;font-size:13px;padding:10px;border:1.5px solid #ddd;border-radius:8px" readonly>${esc(pgn)}</textarea><div class="row"><button class="btn solid" data-a="close">Готово</button></div>`); }
+  setTimeout(()=>btn.textContent="Копировать PGN", 1600);
+};
+function toggleRules(open){ const d=$("drawer"); d.classList.toggle("open",open); d.setAttribute("aria-hidden", String(!open)); }
+$("rulesBtn").onclick = () => toggleRules(true);
+$("closeRules").onclick = () => toggleRules(false);
+
+// старт: показываем доску и окно настройки
+newGame(setup);
+openSetup();
+md.dataset.lock = "1";
+window.__chess = {parseFEN, legal, make, san, insufficient};
+})();
+</script>
+</body>
+</html>
